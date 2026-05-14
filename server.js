@@ -13,6 +13,8 @@ import authRoutes from './routes/authRoutes.js';
 import userRoutes from './routes/userRoutes.js';
 import projectRoutes from './routes/projectRoutes.js';
 
+import fileRoutes from './routes/fileRoutes.js';
+
 // Connect to database
 // Note: Ensure MongoDB is running locally
 connectDB();
@@ -44,6 +46,7 @@ app.use(passport.session());
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/projects', projectRoutes);
+app.use('/api/files', fileRoutes);
 
 app.get('/', (req, res) => {
   res.send('CodeSync API is running...');
