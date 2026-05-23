@@ -35,7 +35,9 @@ app.set('trust proxy', 1); // Trust reverse proxy (Render) to securely handle HT
 // Create HTTP server explicitly so Socket.IO can attach to it
 const server = http.createServer(app);
 
-const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
+const FRONTEND_URL = process.env.FRONTEND_URL 
+  ? process.env.FRONTEND_URL.split(',').map(url => url.trim()) 
+  : ['http://localhost:5173'];
 
 // Initialize Socket.IO
 const io = new SocketServer(server, {
