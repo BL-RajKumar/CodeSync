@@ -36,7 +36,7 @@ app.set('trust proxy', 1); // Trust reverse proxy (Render) to securely handle HT
 const server = http.createServer(app);
 
 const FRONTEND_URL = process.env.FRONTEND_URL 
-  ? process.env.FRONTEND_URL.split(',').map(url => url.trim()) 
+  ? process.env.FRONTEND_URL.split(',').map(url => url.trim().replace(/\/$/, '')) 
   : ['http://localhost:5173'];
 
 // Initialize Socket.IO
