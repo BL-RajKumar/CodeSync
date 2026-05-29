@@ -1,0 +1,135 @@
+tags:
+  name: Collaboration
+  description: Real-time collaboration session management
+
+
+/api/collab/start:
+  post:
+    summary: Start a new collaboration session
+    tags: [Collaboration]
+    security:
+      - cookieAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - projectId
+              - fileId
+            properties:
+              projectId:
+                type: string
+              fileId:
+                type: string
+    responses:
+      201:
+        description: Session started
+
+
+/api/collab/join/{sessionId}:
+  get:
+    summary: Join an existing collaboration session
+    tags: [Collaboration]
+    parameters:
+      - in: path
+        name: sessionId
+        required: true
+        schema:
+          type: string
+    responses:
+      200:
+        description: Session joined
+
+
+/api/collab/join/{sessionId}/verify:
+  post:
+    summary: Verify password for a protected session
+    tags: [Collaboration]
+    parameters:
+      - in: path
+        name: sessionId
+        required: true
+        schema:
+          type: string
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              password:
+                type: string
+    responses:
+      200:
+        description: Password verified
+
+
+/api/collab/{sessionId}/end:
+  post:
+    summary: End a collaboration session
+    tags: [Collaboration]
+    security:
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: sessionId
+        required: true
+        schema:
+          type: string
+    requestBody:
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              discardChanges:
+                type: boolean
+    responses:
+      200:
+        description: Session ended
+
+
+/api/collab/{sessionId}:
+  get:
+    summary: Get session details
+    tags: [Collaboration]
+    security:
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: sessionId
+        required: true
+        schema:
+          type: string
+    responses:
+      200:
+        description: Session details
+
+
+/api/collab/{sessionId}/invite:
+  post:
+    summary: Invite a user to a session
+    tags: [Collaboration]
+    security:
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: sessionId
+        required: true
+        schema:
+          type: string
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              email:
+                type: string
+    responses:
+      200:
+        description: Invitation sent

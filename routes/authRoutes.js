@@ -14,14 +14,17 @@ import generateToken from '../utils/generateToken.js';
 
 const router = express.Router();
 
-// Local Auth Routes
+
 router.post('/register', validateRegister, registerUser);
+
 router.post('/login', validateLogin, loginUser);
+
 router.post('/logout', logoutUser);
+
 router.route('/profile').get(protect, getUserProfile).put(protect, updateUserProfile);
+
 router.get('/verify/:token', verifyEmail);
 
-// Google OAuth Routes
 router.get('/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
 
 router.get(
@@ -35,7 +38,6 @@ router.get(
   }
 );
 
-// GitHub OAuth Routes
 router.get('/github', passport.authenticate('github', { scope: ['user:email'] }));
 
 router.get(

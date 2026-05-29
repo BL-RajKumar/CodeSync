@@ -1,0 +1,50 @@
+tags:
+  name: Users
+  description: User profiles and searching
+
+
+/api/users/search:
+  get:
+    summary: Search for users
+    tags: [Users]
+    security:
+      - cookieAuth: []
+    parameters:
+      - in: query
+        name: query
+        required: true
+        schema:
+          type: string
+    responses:
+      200:
+        description: List of matching users
+
+
+/api/users/{username}:
+  get:
+    summary: Get user public profile
+    tags: [Users]
+    parameters:
+      - in: path
+        name: username
+        required: true
+        schema:
+          type: string
+    responses:
+      200:
+        description: User public profile data
+
+
+/api/users/{username}/projects:
+  get:
+    summary: Get user public projects
+    tags: [Users]
+    parameters:
+      - in: path
+        name: username
+        required: true
+        schema:
+          type: string
+    responses:
+      200:
+        description: List of user's public projects

@@ -4,11 +4,14 @@ import { protect } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
+
 // Apply auth middleware to protect all notification endpoints
 router.use(protect);
 
 router.get('/', getNotifications);
+
 router.put('/read-all', markAllAsRead);
+
 router.put('/:id/read', markAsRead);
 
 export default router;

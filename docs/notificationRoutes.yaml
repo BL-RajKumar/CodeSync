@@ -1,0 +1,42 @@
+tags:
+  name: Notifications
+  description: Real-time notifications for user activity
+
+
+/api/notifications:
+  get:
+    summary: Get all notifications for the user
+    tags: [Notifications]
+    security:
+      - cookieAuth: []
+    responses:
+      200:
+        description: List of notifications
+
+
+/api/notifications/read-all:
+  put:
+    summary: Mark all notifications as read
+    tags: [Notifications]
+    security:
+      - cookieAuth: []
+    responses:
+      200:
+        description: All notifications marked as read
+
+
+/api/notifications/{id}/read:
+  put:
+    summary: Mark a single notification as read
+    tags: [Notifications]
+    security:
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+    responses:
+      200:
+        description: Notification marked as read

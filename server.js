@@ -22,6 +22,7 @@ import adminRoutes from './routes/adminRoutes.js';
 import initializeCollabSocket from './socket/collabSocket.js';
 import { setIoInstance } from './utils/notificationService.js';
 import { initCronJobs } from './utils/cronJobs.js';
+import setupSwagger from './config/swagger.js';
 
 // Connect to database
 // Note: Ensure MongoDB is running locally
@@ -73,6 +74,9 @@ app.use(passport.initialize());
 app.use(passport.session());
 
 import uploadRoutes from './routes/uploadRoutes.js';
+
+// Setup API Documentation
+setupSwagger(app);
 
 // Routes
 app.use('/api/auth', authRoutes);

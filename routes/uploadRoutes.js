@@ -33,9 +33,7 @@ const storage = new CloudinaryStorage({
 
 const upload = multer({ storage: storage });
 
-// @desc    Upload avatar image
-// @route   POST /api/upload/avatar
-// @access  Private
+
 router.post('/avatar', protect, (req, res) => {
   upload.single('image')(req, res, function (err) {
     if (err) {

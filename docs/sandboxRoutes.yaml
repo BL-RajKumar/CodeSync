@@ -1,0 +1,70 @@
+tags:
+  name: Sandbox
+  description: Code execution and language environments
+
+
+/api/sandbox/run:
+  post:
+    summary: Execute code in sandbox
+    tags: [Sandbox]
+    security:
+      - cookieAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              languageId:
+                type: string
+              code:
+                type: string
+    responses:
+      200:
+        description: Execution result
+
+
+/api/sandbox/languages:
+  get:
+    summary: List supported languages
+    tags: [Sandbox]
+    responses:
+      200:
+        description: List of supported languages
+
+
+/api/sandbox/history:
+  get:
+    summary: Get execution history for current user
+    tags: [Sandbox]
+    security:
+      - cookieAuth: []
+    responses:
+      200:
+        description: Execution history list
+  delete:
+    summary: Clear all execution history
+    tags: [Sandbox]
+    security:
+      - cookieAuth: []
+    responses:
+      200:
+        description: History cleared
+
+
+/api/sandbox/history/{id}:
+  delete:
+    summary: Delete a single history entry
+    tags: [Sandbox]
+    security:
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+    responses:
+      200:
+        description: History entry deleted

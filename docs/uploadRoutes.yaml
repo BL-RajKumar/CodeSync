@@ -1,0 +1,26 @@
+tags:
+  name: Uploads
+  description: File upload and media management
+
+
+/api/upload/avatar:
+  post:
+    summary: Upload an avatar image
+    tags: [Uploads]
+    security:
+      - cookieAuth: []
+    requestBody:
+      required: true
+      content:
+        multipart/form-data:
+          schema:
+            type: object
+            properties:
+              image:
+                type: string
+                format: binary
+    responses:
+      200:
+        description: Avatar uploaded successfully
+      400:
+        description: Missing or invalid file
