@@ -12,11 +12,14 @@ export const searchUsers = async (req, res) => {
   }
 
   try {
-    // Case-insensitive regex search
+    // Case-insensitive regex search for username OR email
     const users = await User.find({
-      username: { $regex: query, $options: 'i' },
+      $or: [
+        { username: { $regex: query, $options: 'i' } },
+        { email: { $regex: query, $options: 'i' } }
+      ],
       isActive: true // only return active users
-    }).select('username fullName avatarUrl role bio'); // don't return email or passwordHash
+    }).select('username fullName avatarUrl role bio email'); // safely return email since route is protected
 
     res.json(users);
   } catch (error) {

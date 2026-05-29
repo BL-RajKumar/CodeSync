@@ -6,17 +6,20 @@ import {
   logoutUser,
   getUserProfile,
   updateUserProfile,
+  verifyEmail,
 } from '../controllers/authController.js';
 import { protect } from '../middleware/authMiddleware.js';
+import { validateRegister, validateLogin } from '../middleware/validationMiddleware.js';
 import generateToken from '../utils/generateToken.js';
 
 const router = express.Router();
 
 // Local Auth Routes
-router.post('/register', registerUser);
-router.post('/login', loginUser);
+router.post('/register', validateRegister, registerUser);
+router.post('/login', validateLogin, loginUser);
 router.post('/logout', logoutUser);
 router.route('/profile').get(protect, getUserProfile).put(protect, updateUserProfile);
+router.get('/verify/:token', verifyEmail);
 
 // Google OAuth Routes
 router.get('/google', passport.authenticate('google', { scope: ['profile', 'email'] }));

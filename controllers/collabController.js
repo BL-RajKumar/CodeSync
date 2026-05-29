@@ -64,6 +64,7 @@ export const startSession = async (req, res) => {
       maxParticipants: maxParticipants || 5,
       isPasswordProtected: isPasswordProtected || false,
       sessionPassword: isPasswordProtected ? sessionPassword : '',
+      initialFileContent: file.content,
       participants: [{
         userId: req.user._id,
         username: req.user.username,
@@ -143,6 +144,7 @@ export const verifySessionPassword = async (req, res) => {
 // @access  Private (owner only)
 export const endSession = async (req, res) => {
   const { sessionId } = req.params;
+  const { discardChanges } = req.body;
 
   try {
     const session = await CollaborationSession.findOne({ sessionId });
@@ -160,20 +162,35 @@ export const endSession = async (req, res) => {
     session.participants = [];
     await session.save();
 
+    let revertedContent = undefined;
+
+    // Handle discard changes
+    if (discardChanges) {
+      const file = await File.findById(session.fileId);
+      if (file) {
+        file.content = session.initialFileContent || '';
+        await file.save();
+        revertedContent = file.content;
+      }
+    }
+
     // Emit session-ended event and forcibly remove all sockets from the room
     const io = req.app.get('io');
     if (io) {
       const roomName = `session:${session._id}`;
       io.to(roomName).emit('session-ended', {
         sessionId,
-        message: 'The host has ended the collaboration session.',
+        message: discardChanges 
+          ? 'The host ended the session and discarded all changes.' 
+          : 'The host has ended the collaboration session.',
+        revertedContent
       });
       
       // Force all sockets to leave the room
       io.in(roomName).socketsLeave(roomName);
     }
 
-    res.json({ message: 'Collaboration session ended' });
+    res.json({ message: 'Collaboration session ended', revertedContent });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -208,10 +225,11 @@ export const getSession = async (req, res) => {
 // @access  Private
 export const inviteUser = async (req, res) => {
   const { sessionId } = req.params;
-  const { username } = req.body;
+  // Fallback to 'username' for backward compatibility with old frontend code
+  const targetIdentifier = req.body.target || req.body.username;
 
-  if (!username) {
-    return res.status(400).json({ message: 'Username is required to send an invite' });
+  if (!targetIdentifier) {
+    return res.status(400).json({ message: 'Target username or email is required to send an invite' });
   }
 
   try {
@@ -225,10 +243,16 @@ export const inviteUser = async (req, res) => {
       return res.status(403).json({ message: 'Only the session host can invite collaborators' });
     }
 
-    // Find target user by username
-    const targetUser = await User.findOne({ username });
+    // Find target user by username OR email (case-insensitive)
+    const targetUser = await User.findOne({ 
+      $or: [
+        { username: { $regex: new RegExp(`^${targetIdentifier}$`, 'i') } },
+        { email: { $regex: new RegExp(`^${targetIdentifier}$`, 'i') } }
+      ]
+    });
+    
     if (!targetUser) {
-      return res.status(404).json({ message: `User with username "${username}" not found` });
+      return res.status(404).json({ message: `User with username or email "${targetIdentifier}" not found` });
     }
 
     if (targetUser._id.toString() === req.user._id.toString()) {
@@ -250,7 +274,7 @@ export const inviteUser = async (req, res) => {
       relatedType: 'CollaborationSession',
     });
 
-    res.json({ message: `Collaboration invite sent to ${username} successfully` });
+    res.json({ message: `Collaboration invite sent to ${targetUser.username} successfully` });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
