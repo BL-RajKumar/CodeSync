@@ -1,7 +1,7 @@
 import ExecutionHistory from '../models/ExecutionHistory.js';
 import Language from '../models/Language.js';
 import crypto from 'crypto';
-import { spawn } from 'child_process';
+
 
 export const activeExecutions = new Map();
 
@@ -9,7 +9,6 @@ export const activeExecutions = new Map();
 let languageMapCache = {};
 let langAliasMapCache = {};
 let supportedLanguagesCache = [];
-let dockerConfigCache = {};
 
 export const refreshLanguagesCache = async () => {
   try {
@@ -18,7 +17,6 @@ export const refreshLanguagesCache = async () => {
     const newMap = {};
     const newAliasMap = {};
     const newSupported = [];
-    const newDockerConfig = {};
 
     activeLangs.forEach(lang => {
       newMap[lang.name] = lang.id;
@@ -44,30 +42,12 @@ export const refreshLanguagesCache = async () => {
         extensions: lang.extensions,
         color: lang.color,
         description: lang.description,
-        dockerImage: lang.dockerImage,
-        dockerRunCmd: lang.dockerRunCmd,
       });
-
-      if (lang.dockerImage && lang.dockerRunCmd) {
-        newDockerConfig[lang.name] = {
-          image: lang.dockerImage,
-          runCmd: lang.dockerRunCmd,
-          ext: lang.extensions && lang.extensions.length > 0 ? lang.extensions[0] : '.txt'
-        };
-
-        // Asynchronously pre-pull the Docker image in the background to prevent execution timeouts
-        // on the very first run of a new language (e.g., pulling gcc:latest takes minutes)
-        try {
-          const pullProcess = spawn('docker', ['pull', lang.dockerImage], { stdio: 'ignore' });
-          pullProcess.on('error', () => {}); // Ignore errors, it's just a pre-warm optimization
-        } catch (e) {}
-      }
     });
 
     languageMapCache = newMap;
     langAliasMapCache = newAliasMap;
     supportedLanguagesCache = newSupported;
-    dockerConfigCache = newDockerConfig;
     console.log('[Sandbox Cache] Cache refreshed. Active count:', activeLangs.length);
   } catch (err) {
     console.error('[Sandbox Cache] Failed to refresh languages cache:', err.message);
@@ -155,14 +135,9 @@ export const runCode = async (req, res) => {
     return res.status(400).json({ message: 'stdin input is too large (max 64 KB).' });
   }
 
-  const dockerConfig = dockerConfigCache[language];
-  if (!dockerConfig || !dockerConfig.image) {
-    return res.status(400).json({ message: `Language '${language}' is not currently configured with a Docker execution environment.` });
-  }
-
   const executionId = crypto.randomBytes(8).toString('hex');
+  const languageId = getLanguageId(language);
 
-  // UC23: combined AbortController — aborts on timeout OR client disconnect
   const controller = new AbortController();
   const timeoutId  = setTimeout(() => controller.abort(), LOCAL_EXECUTION_TIMEOUT);
   req.on('close', () => { clearTimeout(timeoutId); controller.abort(); });
@@ -180,85 +155,38 @@ export const runCode = async (req, res) => {
   });
 
   try {
-    const result = await new Promise((resolve, reject) => {
-      const startTime = Date.now();
-      
-      // Execute a shell inside the container so we can pipe base64 decoded scripts
-      // This completely avoids flaky Windows host-to-container volume mounts
-      const args = [
-        'run', '--rm', '-i',
-        '--network', 'none', // disable internet access for security
-        '--memory', '128m',  // 128MB memory limit
-        dockerConfig.image,
-        'sh'
-      ];
-      
-      const child = spawn('docker', args, { stdio: ['pipe', 'pipe', 'pipe'] });
+    const payload = {
+      language_id: languageId,
+      source_code: Buffer.from(code).toString('base64'),
+      stdin: stdin ? Buffer.from(stdin).toString('base64') : ''
+    };
 
-      let stdout = '';
-      let stderr = '';
-
-      child.stdout.on('data', (data) => {
-        stdout += data.toString();
-        if (stdout.length > MAX_OUTPUT_BYTES) {
-          child.kill();
-          stderr += '\n[Error: Output exceeded maximum limit]';
-        }
-      });
-
-      child.stderr.on('data', (data) => {
-        stderr += data.toString();
-        if (stderr.length > MAX_OUTPUT_BYTES) {
-          child.kill();
-        }
-      });
-
-      child.on('close', (code) => {
-        const timeElapsed = (Date.now() - startTime) / 1000;
-        resolve({
-          stdout,
-          stderr,
-          compileOutput: '',
-          message: '',
-          status: {
-            id: code === 0 ? 3 : (code === 137 ? 5 : 11), // 3: Accepted, 5: Time Limit, 11: Runtime Error
-            description: code === 0 ? 'Accepted' : (code === 137 ? 'Time Limit' : 'Runtime Error'),
-          },
-          time: timeElapsed.toFixed(3),
-          memory: null,
-        });
-      });
-
-      child.on('error', (err) => {
-        reject(err);
-      });
-
-      controller.signal.addEventListener('abort', () => {
-        child.kill();
-        resolve({
-          stdout,
-          stderr: stderr + '\n[Error: Execution timed out or aborted]',
-          compileOutput: '',
-          status: { id: 5, description: 'Time Limit Exceeded' },
-          time: ((Date.now() - startTime) / 1000).toFixed(3),
-          memory: null,
-        });
-      });
-
-      // Construct a shell script to decode the base64 code and input, then execute it
-      const codeBase64 = Buffer.from(code).toString('base64');
-      const inputBase64 = Buffer.from(stdin || '').toString('base64');
-      const scriptFilename = `script${dockerConfig.ext}`;
-      
-      const shellPayload = `
-echo "${codeBase64}" | base64 -d > ${scriptFilename}
-echo "${inputBase64}" | base64 -d > input.txt
-${dockerConfig.runCmd} < input.txt
-exit $?
-`;
-      child.stdin.write(shellPayload);
-      child.stdin.end();
+    // Using the official free Judge0 CE public instance! (No API Key Required)
+    const response = await fetch('https://ce.judge0.com/submissions?base64_encoded=true&wait=true', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(payload),
+      signal: controller.signal
     });
+
+    if (!response.ok) {
+      throw new Error(`Judge0 API returned ${response.status}`);
+    }
+
+    const data = await response.json();
+    const decodeBase64 = (str) => str ? Buffer.from(str, 'base64').toString('utf8') : '';
+
+    const result = {
+      stdout: decodeBase64(data.stdout),
+      stderr: decodeBase64(data.stderr),
+      compileOutput: decodeBase64(data.compile_output),
+      message: decodeBase64(data.message),
+      status: data.status || { id: 3, description: 'Accepted' },
+      time: data.time || '0.000',
+      memory: data.memory || 0,
+    };
 
     // UC24: persist to history (fire-and-forget)
     if (req.user) {
@@ -272,7 +200,7 @@ exit $?
       return res.status(504).json({ message: 'Code execution timed out or was terminated by administrator.' });
     }
     console.error('Sandbox error:', error);
-    return res.status(500).json({ message: 'Internal server error during code execution.' });
+    return res.status(500).json({ message: 'Internal server error during code execution: ' + error.message });
   } finally {
     clearTimeout(timeoutId);
     activeExecutions.delete(executionId);
