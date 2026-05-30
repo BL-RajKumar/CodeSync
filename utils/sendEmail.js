@@ -6,6 +6,7 @@ const sendEmail = async (options) => {
     host: process.env.SMTP_HOST || 'smtp.gmail.com',
     port: process.env.SMTP_PORT || 587,
     secure: process.env.SMTP_SECURE === 'true', // true for 465, false for other ports
+    family: 4, // Force IPv4 (fixes ENETUNREACH on Render/IPv6)
     auth: {
       user: process.env.SMTP_EMAIL, // e.g. your email
       pass: process.env.SMTP_PASSWORD, // e.g. app password
