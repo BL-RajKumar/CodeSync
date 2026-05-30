@@ -10,6 +10,7 @@ import { protect, admin } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
+
 // All routes here require user login (protect) and Admin privileges (admin)
 router.use(protect);
 router.use(admin);

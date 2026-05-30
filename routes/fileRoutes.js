@@ -4,13 +4,21 @@ import { protect, optionalAuth } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
+
 router.get('/:projectId/search', protect, searchInProject);
+
 router.get('/:projectId', optionalAuth, getProjectFiles);
+
 router.post('/', protect, createFile);
+
 router.put('/folder/rename', protect, renameFolder);
+
 router.delete('/folder', protect, deleteFolder);
+
 router.put('/:fileId/rename', protect, renameFile);
+
 router.put('/:fileId/content', protect, updateFileContent);
+
 router.delete('/:fileId', protect, deleteFile);
 
 export default router;

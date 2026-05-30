@@ -1,7 +1,5 @@
+import 'dotenv/config';
 import express from 'express';
-import dotenv from 'dotenv';
-
-dotenv.config();
 import http from 'http';
 import { Server as SocketServer } from 'socket.io';
 import cors from 'cors';
@@ -24,17 +22,21 @@ import adminRoutes from './routes/adminRoutes.js';
 import initializeCollabSocket from './socket/collabSocket.js';
 import { setIoInstance } from './utils/notificationService.js';
 import { initCronJobs } from './utils/cronJobs.js';
+import setupSwagger from './config/swagger.js';
 
 // Connect to database
 // Note: Ensure MongoDB is running locally
 connectDB();
 
 const app = express();
+app.set('trust proxy', 1); // Trust reverse proxy (Render) to securely handle HTTPS OAuth callbacks
 
 // Create HTTP server explicitly so Socket.IO can attach to it
 const server = http.createServer(app);
 
-const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
+const FRONTEND_URL = process.env.FRONTEND_URL 
+  ? process.env.FRONTEND_URL.split(',').map(url => url.trim().replace(/\/$/, '')) 
+  : ['http://localhost:5173'];
 
 // Initialize Socket.IO
 const io = new SocketServer(server, {
@@ -71,6 +73,11 @@ configurePassport();
 app.use(passport.initialize());
 app.use(passport.session());
 
+import uploadRoutes from './routes/uploadRoutes.js';
+
+// Setup API Documentation
+setupSwagger(app);
+
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
@@ -82,6 +89,7 @@ app.use('/api/snapshots', snapshotRoutes);
 app.use('/api/comments', commentRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/upload', uploadRoutes);
 
 app.get('/', (req, res) => {
   res.send('CodeSync API is running...');

@@ -13,6 +13,7 @@ import { protect } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
+
 // All snapshot routes require authentication
 router.use(protect);
 

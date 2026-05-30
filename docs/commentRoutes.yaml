@@ -1,0 +1,128 @@
+tags:
+  name: Comments
+  description: In-editor and project level commenting
+
+
+/api/comments:
+  post:
+    summary: Create a comment or reply
+    tags: [Comments]
+    security:
+      - cookieAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              projectId:
+                type: string
+              fileId:
+                type: string
+              content:
+                type: string
+              lineNumber:
+                type: number
+              snapshotId:
+                type: string
+              parentId:
+                type: string
+    responses:
+      201:
+        description: Comment created
+
+
+/api/comments/file/{fileId}:
+  get:
+    summary: Get comments for a specific file
+    tags: [Comments]
+    security:
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: fileId
+        required: true
+        schema:
+          type: string
+      - in: query
+        name: snapshotId
+        schema:
+          type: string
+    responses:
+      200:
+        description: List of comments
+
+
+/api/comments/project/{projectId}:
+  get:
+    summary: Get all comments for a project
+    tags: [Comments]
+    security:
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: projectId
+        required: true
+        schema:
+          type: string
+    responses:
+      200:
+        description: List of comments
+
+
+/api/comments/{id}:
+  put:
+    summary: Update a comment
+    tags: [Comments]
+    security:
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              content:
+                type: string
+    responses:
+      200:
+        description: Comment updated
+  delete:
+    summary: Delete a comment
+    tags: [Comments]
+    security:
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+    responses:
+      200:
+        description: Comment deleted
+
+
+/api/comments/{id}/resolve:
+  put:
+    summary: Toggle resolve status of a comment thread
+    tags: [Comments]
+    security:
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+    responses:
+      200:
+        description: Comment resolution toggled

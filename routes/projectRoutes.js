@@ -4,6 +4,7 @@ import { protect, optionalAuth } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
+
 // Public route for fetching projects
 router.get('/public', getPublicProjects);
 
@@ -17,10 +18,8 @@ router.get('/starred', protect, getStarredProjects);
 // Get single project
 router.get('/:id', optionalAuth, getProjectById);
 
-// Fork a project
 router.post('/:id/fork', protect, forkProject);
 
-// Star a project
 router.post('/:id/star', protect, toggleStarProject);
 
 export default router;
