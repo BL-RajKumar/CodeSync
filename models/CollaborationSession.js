@@ -69,6 +69,10 @@ const collaborationSessionSchema = new mongoose.Schema({
     type: Date,
     default: Date.now,
   },
+  initialFileContent: {
+    type: String,
+    default: '',
+  },
   // Runtime tracking (not in the provided schema but needed for live state)
   participants: [participantSchema],
 }, {
