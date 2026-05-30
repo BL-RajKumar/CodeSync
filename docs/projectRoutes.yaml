@@ -1,0 +1,108 @@
+tags:
+  name: Projects
+  description: Project management and access control
+
+
+/api/projects:
+  post:
+    summary: Create a new project
+    tags: [Projects]
+    security:
+      - cookieAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - name
+            properties:
+              name:
+                type: string
+              description:
+                type: string
+              isPublic:
+                type: boolean
+    responses:
+      201:
+        description: Project created successfully
+      401:
+        description: Unauthorized
+
+
+/api/projects/starred:
+  get:
+    summary: Get all starred projects for the authenticated user
+    tags: [Projects]
+    security:
+      - cookieAuth: []
+    responses:
+      200:
+        description: List of starred projects
+      401:
+        description: Unauthorized
+
+
+/api/projects/{id}:
+  get:
+    summary: Get a specific project by ID
+    tags: [Projects]
+    security:
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+        description: Project ID
+    responses:
+      200:
+        description: Project data
+      404:
+        description: Project not found
+
+
+/api/projects/{id}/fork:
+  post:
+    summary: Fork a project
+    tags: [Projects]
+    security:
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+        description: Project ID to fork
+    responses:
+      201:
+        description: Project forked successfully
+      401:
+        description: Unauthorized
+      404:
+        description: Project not found
+
+
+/api/projects/{id}/star:
+  post:
+    summary: Toggle star status for a project
+    tags: [Projects]
+    security:
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+        description: Project ID
+    responses:
+      200:
+        description: Star status toggled
+      401:
+        description: Unauthorized
+      404:
+        description: Project not found

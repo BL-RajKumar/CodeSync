@@ -1,0 +1,185 @@
+tags:
+  name: Admin
+  description: Administrator tools and metrics
+
+
+/api/admin/users:
+  get:
+    summary: Get all users
+    tags: [Admin]
+    security:
+      - cookieAuth: []
+    responses:
+      200:
+        description: List of all users
+
+
+/api/admin/users/{id}/suspend:
+  put:
+    summary: Suspend a user
+    tags: [Admin]
+    security:
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+    responses:
+      200:
+        description: User suspended
+
+
+/api/admin/users/{id}:
+  delete:
+    summary: Delete a user
+    tags: [Admin]
+    security:
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+    responses:
+      200:
+        description: User deleted
+
+
+/api/admin/sessions:
+  get:
+    summary: Get active collaboration sessions
+    tags: [Admin]
+    security:
+      - cookieAuth: []
+    responses:
+      200:
+        description: List of active sessions
+
+
+/api/admin/sessions/{sessionId}:
+  delete:
+    summary: Terminate a collaboration session
+    tags: [Admin]
+    security:
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: sessionId
+        required: true
+        schema:
+          type: string
+    responses:
+      200:
+        description: Session terminated
+
+
+/api/admin/jobs:
+  get:
+    summary: Get active sandbox jobs
+    tags: [Admin]
+    security:
+      - cookieAuth: []
+    responses:
+      200:
+        description: List of active jobs
+
+
+/api/admin/jobs/{id}:
+  delete:
+    summary: Cancel a running job
+    tags: [Admin]
+    security:
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+    responses:
+      200:
+        description: Job cancelled
+
+
+/api/admin/analytics:
+  get:
+    summary: Get platform analytics
+    tags: [Admin]
+    security:
+      - cookieAuth: []
+    responses:
+      200:
+        description: Platform analytics object
+
+
+/api/admin/languages:
+  get:
+    summary: Get supported languages
+    tags: [Admin]
+    security:
+      - cookieAuth: []
+    responses:
+      200:
+        description: List of languages
+  post:
+    summary: Add a new supported language
+    tags: [Admin]
+    security:
+      - cookieAuth: []
+    responses:
+      201:
+        description: Language created
+
+
+/api/admin/languages/{id}:
+  put:
+    summary: Update a supported language
+    tags: [Admin]
+    security:
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+    responses:
+      200:
+        description: Language updated
+  delete:
+    summary: Remove a supported language
+    tags: [Admin]
+    security:
+      - cookieAuth: []
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+    responses:
+      200:
+        description: Language deleted
+
+
+/api/admin/broadcast:
+  post:
+    summary: Send a system-wide broadcast message
+    tags: [Admin]
+    security:
+      - cookieAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              message:
+                type: string
+    responses:
+      200:
+        description: Broadcast sent

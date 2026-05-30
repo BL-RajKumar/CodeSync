@@ -1,0 +1,151 @@
+// CodeSync Database Schema
+// Generated for dbdiagram.io / DBML
+
+Table users {
+  _id ObjectId [pk]
+  username String [unique, not null]
+  email String [unique, not null]
+  passwordHash String
+  fullName String [default: ""]
+  role String [default: "Developer", note: "Guest | Developer | Admin"]
+  avatarUrl String [default: ""]
+  provider String [default: "local", note: "local | google | github"]
+  isActive Boolean [default: true]
+  isEmailVerified Boolean [default: false]
+  verificationToken String
+  bio String [default: ""]
+  starredProjects ObjectId[] [note: "Array of Project refs"]
+  createdAt Date
+  updatedAt Date
+}
+
+Table projects {
+  _id ObjectId [pk]
+  name String [not null]
+  description String [default: ""]
+  language String [not null]
+  visibility String [default: "Public", note: "Public | Private"]
+  templateId Number
+  isArchived Boolean [default: false]
+  ownerId ObjectId [ref: > users._id]
+  forkedFrom ObjectId [ref: > projects._id]
+  starCount Number [default: 0]
+  forkCount Number [default: 0]
+  createdAt Date
+  updatedAt Date
+}
+
+Table files {
+  _id ObjectId [pk]
+  projectId ObjectId [ref: > projects._id]
+  name String [not null]
+  path String [not null]
+  language String [default: "plaintext"]
+  content String [default: ""]
+  size Number [default: 0]
+  createdById ObjectId [ref: > users._id]
+  lastEditedBy ObjectId [ref: > users._id]
+  isDeleted Boolean [default: false]
+  createdAt Date
+  updatedAt Date
+}
+
+Table collaboration_sessions {
+  _id ObjectId [pk]
+  sessionId String [unique]
+  projectId ObjectId [ref: > projects._id]
+  fileId ObjectId [ref: > files._id]
+  ownerId ObjectId [ref: > users._id]
+  status String [default: "Active", note: "Active | Ended"]
+  language String [default: "plaintext"]
+  maxParticipants Number [default: 5]
+  isPasswordProtected Boolean [default: false]
+  sessionPassword String
+  lastActiveAt Date
+  initialFileContent String
+  participants Participant[] [note: "Embedded array"]
+  createdAt Date
+  endedAt Date
+}
+
+Table comments {
+  _id ObjectId [pk]
+  projectId ObjectId [ref: > projects._id]
+  fileId ObjectId [ref: > files._id]
+  snapshotId ObjectId [ref: > snapshots._id]
+  authorId ObjectId [ref: > users._id]
+  parentCommentId ObjectId [ref: > comments._id]
+  lineNumber Number [not null]
+  columnNumber Number
+  content String [not null]
+  resolved Boolean [default: false]
+  createdAt Date
+  updatedAt Date
+}
+
+Table execution_history {
+  _id ObjectId [pk]
+  userId ObjectId [ref: > users._id]
+  projectId String
+  fileId String
+  language String [not null]
+  sourceCode String
+  stdin String
+  status String [default: "Unknown"]
+  stdout String
+  stderr String
+  exitCode Number
+  executionTimeMs Number
+  memoryUsedKb Number
+  completedAt Date
+  cancelled Boolean [default: false]
+  createdAt Date
+  updatedAt Date
+}
+
+Table snapshots {
+  _id ObjectId [pk]
+  projectId ObjectId [ref: > projects._id]
+  fileId ObjectId [ref: > files._id]
+  authorId ObjectId [ref: > users._id]
+  parentSnapshotId ObjectId [ref: > snapshots._id]
+  message String [not null]
+  content String [default: ""]
+  hash String [not null]
+  branch String [default: "main"]
+  tag String
+  createdAt Date
+  updatedAt Date
+}
+
+Table notifications {
+  _id ObjectId [pk]
+  recipientId ObjectId [ref: > users._id]
+  actorId ObjectId [ref: > users._id]
+  type String [not null]
+  title String [not null]
+  message String [not null]
+  relatedId String [note: "Polymorphic reference ID"]
+  relatedType String [note: "Model name of related entity"]
+  isRead Boolean [default: false]
+  createdAt Date
+  updatedAt Date
+}
+
+Table languages {
+  _id ObjectId [pk]
+  id Number [unique, not null]
+  name String [unique, not null]
+  displayName String [not null]
+  version String
+  category String [default: "Scripting"]
+  extensions String[]
+  aliases String[]
+  color String [default: "#cccccc"]
+  description String
+  dockerImage String
+  dockerRunCmd String
+  isActive Boolean [default: true]
+  createdAt Date
+  updatedAt Date
+}
