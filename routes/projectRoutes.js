@@ -1,5 +1,5 @@
 import express from 'express';
-import { createProject, getDeveloperProjects, getPublicProjects, forkProject, toggleStarProject, getStarredProjects, getProjectById } from '../controllers/projectController.js';
+import { createProject, getDeveloperProjects, getPublicProjects, forkProject, toggleStarProject, getStarredProjects, getProjectById, deleteProject } from '../controllers/projectController.js';
 import { protect, optionalAuth } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
@@ -21,5 +21,7 @@ router.get('/:id', optionalAuth, getProjectById);
 router.post('/:id/fork', protect, forkProject);
 
 router.post('/:id/star', protect, toggleStarProject);
+
+router.delete('/:id', protect, deleteProject);
 
 export default router;

@@ -72,9 +72,7 @@ const Language = mongoose.model('Language', languageSchema);
 
 export const seedLanguages = async () => {
   try {
-    const count = await Language.countDocuments();
-    if (count > 0) return;
-
+    // We removed the early return so new languages get added even if the DB is already populated
     const defaults = [
       {
         id: 93, name: 'javascript', displayName: 'JavaScript',
@@ -152,11 +150,39 @@ export const seedLanguages = async () => {
         extensions: ['.txt'], aliases: ['txt', 'plaintext'], color: '#cccccc',
         description: 'Plain text files without formatting or compilation capabilities.',
         dockerImage: '', dockerRunCmd: ''
+      },
+      {
+        id: 101, name: 'react', displayName: 'React (Web)',
+        version: 'React 18', category: 'Web',
+        extensions: ['.jsx', '.js', '.css'], aliases: ['react'], color: '#61dafb',
+        description: 'React web application powered by Sandpack.',
+        dockerImage: '', dockerRunCmd: ''
+      },
+      {
+        id: 102, name: 'vanilla-web', displayName: 'Vanilla Web',
+        version: 'HTML/CSS/JS', category: 'Web',
+        extensions: ['.html', '.css', '.js'], aliases: ['vanilla'], color: '#e34f26',
+        description: 'Vanilla HTML, CSS, and JS web project powered by Sandpack.',
+        dockerImage: '', dockerRunCmd: ''
+      },
+      {
+        id: 103, name: 'node-web', displayName: 'Node.js (Web)',
+        version: 'Node.js 18', category: 'Web',
+        extensions: ['.js'], aliases: ['node'], color: '#339933',
+        description: 'Node.js backend project powered by Sandpack.',
+        dockerImage: '', dockerRunCmd: ''
       }
     ];
 
-    await Language.insertMany(defaults);
-    console.log('[Database] Default sandbox languages seeded successfully.');
+    const ops = defaults.map(lang => ({
+      updateOne: {
+        filter: { id: lang.id },
+        update: { $set: lang },
+        upsert: true
+      }
+    }));
+    await Language.bulkWrite(ops);
+    console.log('[Database] Sandbox languages synced successfully.');
   } catch (err) {
     console.error('[Database] Failed to seed default sandbox languages:', err.message);
   }
