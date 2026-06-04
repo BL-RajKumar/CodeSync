@@ -194,6 +194,19 @@ const initializeCollabSocket = (io) => {
       });
     });
 
+    // ─── WHITEBOARD UPDATE ──────────────────────────────
+    socket.on('whiteboard-update', ({ sessionId, elements, appState }) => {
+      if (!currentSessionId || currentSessionId !== sessionId) return;
+
+      const roomName = `session:${currentSessionMongoId}`;
+
+      socket.to(roomName).emit('whiteboard-update', {
+        userId: socket.user._id,
+        elements,
+        appState
+      });
+    });
+
     // ─── KICK PARTICIPANT (owner only) ─────────────────
     socket.on('kick-participant', async ({ sessionId, targetUserId }) => {
       if (!currentSessionId || currentSessionId !== sessionId) return;

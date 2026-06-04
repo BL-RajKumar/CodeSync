@@ -19,6 +19,7 @@ import snapshotRoutes from './routes/snapshotRoutes.js';
 import commentRoutes from './routes/commentRoutes.js';
 import notificationRoutes from './routes/notificationRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
+import whiteboardRoutes from './routes/whiteboardRoutes.js';
 import initializeCollabSocket from './socket/collabSocket.js';
 import { setIoInstance } from './utils/notificationService.js';
 import { initCronJobs } from './utils/cronJobs.js';
@@ -90,6 +91,7 @@ app.use('/api/comments', commentRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/upload', uploadRoutes);
+app.use('/api/whiteboard', whiteboardRoutes);
 
 app.get('/', (req, res) => {
   res.send('CodeSync API is running...');
