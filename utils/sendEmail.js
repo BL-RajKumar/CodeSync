@@ -1,43 +1,7 @@
 import nodemailer from 'nodemailer';
 
 const sendEmail = async (options) => {
-  // 1. Brevo HTTP API (Bypasses Render SMTP Block)
-  if (process.env.BREVO_API_KEY) {
-    const payload = {
-      sender: {
-        email: process.env.FROM_EMAIL || process.env.SMTP_EMAIL || 'noreply@codesync.com',
-        name: process.env.FROM_NAME || 'CodeSync Team',
-      },
-      to: [
-        {
-          email: options.email,
-        },
-      ],
-      subject: options.subject,
-      htmlContent: options.message,
-    };
-
-    const response = await fetch('https://api.brevo.com/v3/smtp/email', {
-      method: 'POST',
-      headers: {
-        'api-key': process.env.BREVO_API_KEY,
-        'Content-Type': 'application/json',
-        'accept': 'application/json',
-      },
-      body: JSON.stringify(payload),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.text();
-      console.error('Brevo API Error:', errorData);
-      throw new Error('Failed to send email via Brevo API');
-    }
-    
-    console.log(`Message sent via Brevo API to: ${options.email}`);
-    return;
-  }
-
-  // 2. SendGrid HTTP API (Bypasses Render SMTP Block)
+  // 1. SendGrid HTTP API (Bypasses Render SMTP Block)
   if (process.env.SENDGRID_API_KEY) {
     const payload = {
       personalizations: [
