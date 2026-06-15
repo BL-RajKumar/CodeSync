@@ -17,13 +17,37 @@ const CURSOR_COLORS = [
 ];
 
 const initializeCollabSocket = (io) => {
-  // Authenticate socket connections via JWT cookie or auth token
+  // Authenticate socket connections via JWT cookie, auth token, or Guest session ID
   io.use(async (socket, next) => {
     try {
       const token = socket.handshake.auth?.token ||
                     socket.handshake.headers?.cookie?.match(/jwt=([^;]+)/)?.[1];
 
       if (!token) {
+        // Authenticate guest user
+        const guestUsername = socket.handshake.auth?.guestUsername;
+        const guestUserId = socket.handshake.auth?.guestUserId;
+        const sessionId = socket.handshake.auth?.sessionId;
+
+        if (guestUsername && guestUserId && sessionId) {
+          const session = await CollaborationSession.findOne({ sessionId, status: 'Active' });
+          if (session) {
+            // Verify session password if applicable
+            if (session.isPasswordProtected) {
+              const sessionPassword = socket.handshake.auth?.sessionPassword;
+              if (!sessionPassword || session.sessionPassword !== sessionPassword) {
+                return next(new Error('Incorrect session password'));
+              }
+            }
+
+            socket.user = {
+              _id: guestUserId,
+              username: guestUsername,
+              isGuest: true
+            };
+            return next();
+          }
+        }
         return next(new Error('Authentication required'));
       }
 
@@ -58,6 +82,13 @@ const initializeCollabSocket = (io) => {
 
         if (!session) {
           socket.emit('error-message', { message: 'Session not found or has ended' });
+          return;
+        }
+
+        // Block previously kicked users from rejoining
+        const userId = socket.user._id.toString();
+        if (session.kickedParticipants && session.kickedParticipants.includes(userId)) {
+          socket.emit('error-message', { message: 'You have been removed from this session and cannot rejoin.' });
           return;
         }
 
@@ -154,7 +185,7 @@ const initializeCollabSocket = (io) => {
     });
 
     // ─── CODE CHANGE ───────────────────────────────────
-    socket.on('code-change', async ({ sessionId, changes }) => {
+    socket.on('code-change', async ({ sessionId, fileId, changes }) => {
       if (!currentSessionId || currentSessionId !== sessionId) return;
 
       const roomName = `session:${currentSessionMongoId}`;
@@ -163,12 +194,13 @@ const initializeCollabSocket = (io) => {
       socket.to(roomName).emit('code-change', {
         userId: socket.user._id,
         username: socket.user.username,
+        fileId,
         changes,
       });
     });
 
     // ─── FULL CONTENT SYNC (for save operations) ──────
-    socket.on('content-sync', async ({ sessionId, content }) => {
+    socket.on('content-sync', async ({ sessionId, fileId, content }) => {
       if (!currentSessionId || currentSessionId !== sessionId) return;
 
       const roomName = `session:${currentSessionMongoId}`;
@@ -176,12 +208,13 @@ const initializeCollabSocket = (io) => {
       // Broadcast the full content to all others (used after save)
       socket.to(roomName).emit('content-sync', {
         userId: socket.user._id,
+        fileId,
         content,
       });
     });
 
     // ─── CURSOR MOVE ───────────────────────────────────
-    socket.on('cursor-move', ({ sessionId, position, selection }) => {
+    socket.on('cursor-move', ({ sessionId, fileId, position, selection }) => {
       if (!currentSessionId || currentSessionId !== sessionId) return;
 
       const roomName = `session:${currentSessionMongoId}`;
@@ -189,6 +222,7 @@ const initializeCollabSocket = (io) => {
       socket.to(roomName).emit('cursor-move', {
         userId: socket.user._id,
         username: socket.user.username,
+        fileId,
         position,
         selection: selection || null,
       });
@@ -233,22 +267,43 @@ const initializeCollabSocket = (io) => {
         session.participants = session.participants.filter(
           p => p.userId.toString() !== targetUserId
         );
+
+        // Permanently ban this user from rejoining this session
+        if (!session.kickedParticipants) session.kickedParticipants = [];
+        if (!session.kickedParticipants.includes(targetUserId)) {
+          session.kickedParticipants.push(targetUserId);
+        }
+
         await session.save();
 
         const roomName = `session:${currentSessionMongoId}`;
 
-        // Notify the kicked user
+        // Notify everyone (kicked user sees their own event)
         io.to(roomName).emit('participant-kicked', {
           kickedUserId: targetUserId,
           kickedUsername: kickedUser.username,
           message: `${kickedUser.username} was removed from the session by the host.`,
         });
 
-        // Also broadcast user-left so UI updates for everyone
+        // Also broadcast user-left so participant list updates for everyone
         io.to(roomName).emit('user-left', {
           userId: targetUserId,
           username: kickedUser.username,
         });
+
+        // Force-disconnect the kicked user's socket immediately
+        try {
+          const allSockets = await io.in(roomName).fetchSockets();
+          for (const s of allSockets) {
+            if (s.user && s.user._id.toString() === targetUserId) {
+              s.leave(roomName);
+              s.emit('force-disconnect', { reason: 'You have been removed from this session.' });
+              s.disconnect(true);
+            }
+          }
+        } catch (err) {
+          console.error('[Socket] Force-disconnect error:', err.message);
+        }
 
         console.log(`[Socket] ${socket.user.username} kicked ${kickedUser.username} from session ${sessionId}`);
       } catch (error) {

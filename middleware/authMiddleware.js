@@ -1,11 +1,60 @@
 import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
+import CollaborationSession from '../models/CollaborationSession.js';
+
+const checkGuestSession = async (req) => {
+  const sessionId = req.headers['x-session-id'];
+  if (!sessionId) return false;
+
+  try {
+    const session = await CollaborationSession.findOne({ sessionId, status: 'Active' });
+    if (!session) return false;
+
+    // Validate password if protected
+    if (session.isPasswordProtected) {
+      const sessionPassword = req.headers['x-session-password'];
+      if (!sessionPassword || session.sessionPassword !== sessionPassword) {
+        return false;
+      }
+    }
+
+    const guestUsername = req.headers['x-guest-username'] || 'Guest';
+    const guestUserId = req.headers['x-guest-userid'];
+
+    let parsedUserId;
+    if (guestUserId && /^[0-9a-fA-F]{24}$/.test(guestUserId)) {
+      parsedUserId = guestUserId;
+    } else {
+      // Deterministic valid ObjectId based on sessionId
+      parsedUserId = session._id.toString();
+    }
+
+    // Block users that have been kicked from this session
+    if (session.kickedParticipants && session.kickedParticipants.includes(parsedUserId)) {
+      return false;
+    }
+
+    req.user = {
+      _id: parsedUserId,
+      username: guestUsername,
+      isGuest: true,
+      role: 'Guest'
+    };
+    return true;
+  } catch (error) {
+    console.error('Error verifying guest session:', error);
+    return false;
+  }
+};
 
 const protect = async (req, res, next) => {
-  let token;
+  // Try to authenticate as active collaboration session guest
+  const isGuest = await checkGuestSession(req);
+  if (isGuest) {
+    return next();
+  }
 
-  // Read the JWT from the cookie
-  token = req.cookies.jwt;
+  let token = req.cookies.jwt;
 
   if (token) {
     try {
@@ -41,6 +90,11 @@ const admin = (req, res, next) => {
 };
 
 const optionalAuth = async (req, res, next) => {
+  const isGuest = await checkGuestSession(req);
+  if (isGuest) {
+    return next();
+  }
+
   let token = req.cookies.jwt;
 
   if (token) {
