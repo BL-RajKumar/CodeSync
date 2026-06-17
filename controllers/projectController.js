@@ -1,6 +1,10 @@
 import Project from '../models/Project.js';
 import User from '../models/User.js';
 import CollaborationSession from '../models/CollaborationSession.js';
+import File from '../models/File.js';
+import Snapshot from '../models/Snapshot.js';
+import Comment from '../models/Comment.js';
+import { getBoilerplateForLanguage } from '../utils/boilerplateTemplates.js';
 
 // @desc    Create a new project
 // @route   POST /api/projects
@@ -21,6 +25,21 @@ export const createProject = async (req, res) => {
       templateId: templateId || null,
       ownerId: req.user._id, // Set by the 'protect' middleware
     });
+
+    const boilerplateFiles = getBoilerplateForLanguage(language);
+    if (boilerplateFiles.length > 0) {
+      const filesToInsert = boilerplateFiles.map(file => ({
+        projectId: project._id,
+        name: file.name,
+        path: file.path,
+        language,
+        content: file.content,
+        size: Buffer.byteLength(file.content, 'utf8'),
+        createdById: req.user._id,
+        lastEditedBy: req.user._id,
+      }));
+      await File.insertMany(filesToInsert);
+    }
 
     res.status(201).json(project);
   } catch (error) {
@@ -44,11 +63,20 @@ export const getDeveloperProjects = async (req, res) => {
 
 // @desc    Get public projects with optional filters
 // @route   GET /api/projects/public
-// @access  Public
+// @access  Public (optionalAuth — excludes logged-in user's own projects)
 export const getPublicProjects = async (req, res) => {
   try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 9;
+    const skip = (page - 1) * limit;
+
     const { name, language, owner } = req.query;
     const query = { visibility: 'Public' };
+
+    // Exclude the logged-in user's own projects from explore results
+    if (req.user) {
+      query.ownerId = { $ne: req.user._id };
+    }
 
     if (name) {
       query.name = { $regex: name, $options: 'i' };
@@ -67,14 +95,62 @@ export const getPublicProjects = async (req, res) => {
       }).select('_id');
       
       const userIds = users.map(u => u._id);
-      query.ownerId = { $in: userIds };
+      // If ownerId filter already set (exclude self), intersect with owner search
+      if (query.ownerId) {
+        query.ownerId = { ...query.ownerId, $in: userIds };
+      } else {
+        query.ownerId = { $in: userIds };
+      }
     }
-    console.log(query);
+
+    const totalProjects = await Project.countDocuments(query);
+    const totalPages = Math.ceil(totalProjects / limit);
+
     const projects = await Project.find(query)
       .populate('ownerId', 'username avatarUrl')
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
 
-    res.json(projects);
+    res.json({
+      projects,
+      currentPage: page,
+      totalPages,
+      totalProjects
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc    Update project name / description
+// @route   PATCH /api/projects/:id
+// @access  Private (owner only)
+export const updateProject = async (req, res) => {
+  try {
+    const project = await Project.findById(req.params.id);
+    if (!project) {
+      return res.status(404).json({ message: 'Project not found' });
+    }
+
+    if (project.ownerId.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: 'Not authorized to edit this project' });
+    }
+
+    const { name, description } = req.body;
+
+    if (name !== undefined) {
+      const trimmed = name.trim();
+      if (!trimmed) return res.status(400).json({ message: 'Project name cannot be empty' });
+      project.name = trimmed;
+    }
+
+    if (description !== undefined) {
+      project.description = description.trim();
+    }
+
+    await project.save();
+    res.json(project);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -124,6 +200,26 @@ export const forkProject = async (req, res) => {
       ownerId: req.user._id,
       forkedFrom: originalProject._id,
     });
+
+    // Copy all non-deleted files from the original project into the fork
+    const originalFiles = await File.find({
+      projectId: originalProject._id,
+      isDeleted: { $ne: true },
+    });
+
+    if (originalFiles.length > 0) {
+      const copiedFiles = originalFiles.map(f => ({
+        projectId: forkedProject._id,
+        name: f.name,
+        path: f.path,
+        language: f.language,
+        content: f.content,
+        size: f.size,
+        createdById: req.user._id,
+        lastEditedBy: req.user._id,
+      }));
+      await File.insertMany(copiedFiles);
+    }
 
     res.status(201).json(forkedProject);
   } catch (error) {
@@ -241,6 +337,36 @@ export const getProjectById = async (req, res) => {
     }
     
     res.json(project);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc    Delete a project
+// @route   DELETE /api/projects/:id
+// @access  Private
+export const deleteProject = async (req, res) => {
+  try {
+    const project = await Project.findById(req.params.id);
+
+    if (!project) {
+      return res.status(404).json({ message: 'Project not found' });
+    }
+
+    // Verify ownership
+    if (project.ownerId.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: 'Not authorized to delete this project' });
+    }
+
+    // Clean up associated files (and optionally other models if imported)
+    await File.deleteMany({ projectId: project._id });
+    await CollaborationSession.deleteMany({ projectId: project._id });
+    await Snapshot.deleteMany({ projectId: project._id });
+    await Comment.deleteMany({ projectId: project._id });
+
+    await Project.findByIdAndDelete(project._id);
+
+    res.json({ message: 'Project removed successfully' });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
