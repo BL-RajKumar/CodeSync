@@ -55,6 +55,13 @@ export const startSession = async (req, res) => {
       return res.status(400).json({ message: 'Password is required when session is password protected' });
     }
 
+    // Get initial states of all active files in the project
+    const allFiles = await File.find({ projectId, isDeleted: { $ne: true } });
+    const initialFilesState = allFiles.map(f => ({
+      fileId: f._id,
+      content: f.content
+    }));
+
     // Create a new session
     const session = await CollaborationSession.create({
       projectId,
@@ -65,6 +72,7 @@ export const startSession = async (req, res) => {
       isPasswordProtected: isPasswordProtected || false,
       sessionPassword: isPasswordProtected ? sessionPassword : '',
       initialFileContent: file.content,
+      initialFilesState,
       participants: [{
         userId: req.user._id,
         username: req.user.username,
@@ -162,15 +170,36 @@ export const endSession = async (req, res) => {
     session.participants = [];
     await session.save();
 
+    let revertedFiles = undefined;
     let revertedContent = undefined;
 
     // Handle discard changes
     if (discardChanges) {
-      const file = await File.findById(session.fileId);
-      if (file) {
-        file.content = session.initialFileContent || '';
-        await file.save();
-        revertedContent = file.content;
+      revertedFiles = [];
+      if (session.initialFilesState && session.initialFilesState.length > 0) {
+        for (const item of session.initialFilesState) {
+          const file = await File.findById(item.fileId);
+          if (file) {
+            file.content = item.content || '';
+            await file.save();
+            revertedFiles.push({
+              fileId: item.fileId.toString(),
+              content: item.content || ''
+            });
+          }
+        }
+      } else {
+        // Fallback
+        const file = await File.findById(session.fileId);
+        if (file) {
+          file.content = session.initialFileContent || '';
+          await file.save();
+          revertedContent = file.content;
+          revertedFiles.push({
+            fileId: session.fileId.toString(),
+            content: file.content
+          });
+        }
       }
     }
 
@@ -183,14 +212,15 @@ export const endSession = async (req, res) => {
         message: discardChanges 
           ? 'The host ended the session and discarded all changes.' 
           : 'The host has ended the collaboration session.',
-        revertedContent
+        revertedContent,
+        revertedFiles
       });
       
       // Force all sockets to leave the room
       io.in(roomName).socketsLeave(roomName);
     }
 
-    res.json({ message: 'Collaboration session ended', revertedContent });
+    res.json({ message: 'Collaboration session ended', revertedContent, revertedFiles });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

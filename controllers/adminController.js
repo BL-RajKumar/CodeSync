@@ -346,7 +346,7 @@ export const getLanguages = async (req, res) => {
 // @route   POST /api/admin/languages
 // @access  Private/Admin
 export const createLanguage = async (req, res) => {
-  const { id, name, displayName, version, category, extensions, aliases, color, description, isActive, dockerImage, dockerRunCmd } = req.body;
+  const { id, name, displayName, version, category, extensions, aliases, color, description, isActive } = req.body;
 
   try {
     if (!id || !name || !displayName) {
@@ -369,8 +369,6 @@ export const createLanguage = async (req, res) => {
       aliases,
       color,
       description,
-      dockerImage: dockerImage || '',
-      dockerRunCmd: dockerRunCmd || '',
       isActive: isActive !== undefined ? isActive : true,
     });
 
@@ -388,7 +386,7 @@ export const createLanguage = async (req, res) => {
 // @access  Private/Admin
 export const updateLanguage = async (req, res) => {
   const { id } = req.params;
-  const { id: judge0Id, name, displayName, version, category, extensions, aliases, color, description, isActive, dockerImage, dockerRunCmd } = req.body;
+  const { id: judge0Id, name, displayName, version, category, extensions, aliases, color, description, isActive } = req.body;
 
   try {
     const lang = await Language.findById(id);
@@ -417,8 +415,6 @@ export const updateLanguage = async (req, res) => {
     if (aliases !== undefined) lang.aliases = aliases;
     if (color !== undefined) lang.color = color;
     if (description !== undefined) lang.description = description;
-    if (dockerImage !== undefined) lang.dockerImage = dockerImage;
-    if (dockerRunCmd !== undefined) lang.dockerRunCmd = dockerRunCmd;
     if (isActive !== undefined) lang.isActive = isActive;
 
     const updated = await lang.save();

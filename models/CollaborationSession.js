@@ -73,8 +73,21 @@ const collaborationSessionSchema = new mongoose.Schema({
     type: String,
     default: '',
   },
-  // Runtime tracking (not in the provided schema but needed for live state)
+  initialFilesState: [
+    {
+      fileId: { type: mongoose.Schema.Types.ObjectId, ref: 'File' },
+      content: String,
+    }
+  ],
+  // Live participant tracking
   participants: [participantSchema],
+  // Permanently banned user IDs for the duration of this session (kicked users)
+  kickedParticipants: [
+    {
+      type: String, // stored as string to support both ObjectId and guest hex IDs
+      _id: false,
+    }
+  ],
 }, {
   timestamps: false, // We manage createdAt/endedAt manually per the schema
 });
