@@ -162,6 +162,7 @@ const initializeCollabSocket = (io) => {
         // Send session data to the joining user
         socket.emit('session-joined', {
           sessionId,
+          fileId: session.fileId,
           fileContent: file.content,
           participants: session.participants,
           cursorColor,
