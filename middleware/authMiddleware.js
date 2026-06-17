@@ -48,12 +48,6 @@ const checkGuestSession = async (req) => {
 };
 
 const protect = async (req, res, next) => {
-  // Try to authenticate as active collaboration session guest
-  const isGuest = await checkGuestSession(req);
-  if (isGuest) {
-    return next();
-  }
-
   let token = req.cookies.jwt;
 
   if (token) {
@@ -71,14 +65,22 @@ const protect = async (req, res, next) => {
         return res.status(403).json({ message: 'Your account has been suspended by the administrator.' });
       }
 
-      next();
+      if (req.user) {
+        return next();
+      }
     } catch (error) {
-      console.error(error);
-      res.status(401).json({ message: 'Not authorized, token failed' });
+      console.error('JWT verification error in protect middleware:', error);
+      // Fall through to guest session check
     }
-  } else {
-    res.status(401).json({ message: 'Not authorized, no token' });
   }
+
+  // Try to authenticate as active collaboration session guest
+  const isGuest = await checkGuestSession(req);
+  if (isGuest) {
+    return next();
+  }
+
+  res.status(401).json({ message: 'Not authorized, token failed' });
 };
 
 const admin = (req, res, next) => {
@@ -90,22 +92,25 @@ const admin = (req, res, next) => {
 };
 
 const optionalAuth = async (req, res, next) => {
-  const isGuest = await checkGuestSession(req);
-  if (isGuest) {
-    return next();
-  }
-
   let token = req.cookies.jwt;
 
   if (token) {
     try {
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
       req.user = await User.findById(decoded.userId).select('-password');
+      if (req.user) {
+        return next();
+      }
     } catch (error) {
-      console.error(error);
+      console.error('JWT verification error in optionalAuth middleware:', error);
     }
   }
-  
+
+  const isGuest = await checkGuestSession(req);
+  if (isGuest) {
+    return next();
+  }
+
   next();
 };
 
