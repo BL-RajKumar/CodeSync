@@ -168,6 +168,8 @@ const initializeCollabSocket = (io) => {
           cursorColor,
           ownerId: session.ownerId,
           language: session.language,
+          createdAt: session.createdAt,
+          isCopyPasteRestricted: session.isCopyPasteRestricted || false,
         });
 
         // Broadcast to others that a new user joined
@@ -309,6 +311,33 @@ const initializeCollabSocket = (io) => {
         console.log(`[Socket] ${socket.user.username} kicked ${kickedUser.username} from session ${sessionId}`);
       } catch (error) {
         console.error('[Socket] Kick participant error:', error.message);
+      }
+    });
+
+    // ─── TOGGLE COPY PASTE RESTRICTION ─────────────────
+    socket.on('toggle-copy-paste-restriction', async ({ sessionId, isCopyPasteRestricted }) => {
+      if (!currentSessionId || currentSessionId !== sessionId) return;
+
+      try {
+        const session = await CollaborationSession.findOne({ sessionId, status: 'Active' });
+        if (!session) return;
+
+        // Verify this user is the owner/host
+        if (session.ownerId.toString() !== socket.user._id.toString()) {
+          socket.emit('error-message', { message: 'Only the session host can toggle copy-paste restriction.' });
+          return;
+        }
+
+        session.isCopyPasteRestricted = isCopyPasteRestricted;
+        await session.save();
+
+        const roomName = `session:${currentSessionMongoId}`;
+        io.to(roomName).emit('copy-paste-restriction-updated', {
+          isCopyPasteRestricted
+        });
+        console.log(`[Socket] Host toggled copy-paste restriction in session ${sessionId} to ${isCopyPasteRestricted}`);
+      } catch (error) {
+        console.error('[Socket] Toggle copy-paste restriction error:', error.message);
       }
     });
 

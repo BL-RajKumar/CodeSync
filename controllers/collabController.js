@@ -113,6 +113,7 @@ export const joinSession = async (req, res) => {
       maxParticipants: session.maxParticipants,
       isPasswordProtected: session.isPasswordProtected,
       currentParticipants: session.participants.length,
+      isCopyPasteRestricted: session.isCopyPasteRestricted || false,
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
