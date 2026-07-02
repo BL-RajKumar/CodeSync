@@ -61,6 +61,10 @@ const collaborationSessionSchema = new mongoose.Schema({
     type: Boolean,
     default: false,
   },
+  isCopyPasteRestricted: {
+    type: Boolean,
+    default: false,
+  },
   sessionPassword: {
     type: String,
     default: '',
