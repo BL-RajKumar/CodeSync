@@ -203,7 +203,7 @@ const initializeCollabSocket = (io) => {
     });
 
     // ─── FULL CONTENT SYNC (for save operations) ──────
-    socket.on('content-sync', async ({ sessionId, fileId, content }) => {
+    socket.on('content-sync', async ({ sessionId, fileId, content, lastSavedAt }) => {
       if (!currentSessionId || currentSessionId !== sessionId) return;
 
       const roomName = `session:${currentSessionMongoId}`;
@@ -213,7 +213,39 @@ const initializeCollabSocket = (io) => {
         userId: socket.user._id,
         fileId,
         content,
+        lastSavedAt,
       });
+    });
+
+    // ─── FILE/FOLDER MUTATIONS (sync file tree in real-time) ───
+    socket.on('file-created', ({ sessionId, file }) => {
+      if (!currentSessionId || currentSessionId !== sessionId) return;
+      const roomName = `session:${currentSessionMongoId}`;
+      socket.to(roomName).emit('file-created', { file });
+    });
+
+    socket.on('file-renamed', ({ sessionId, file }) => {
+      if (!currentSessionId || currentSessionId !== sessionId) return;
+      const roomName = `session:${currentSessionMongoId}`;
+      socket.to(roomName).emit('file-renamed', { file });
+    });
+
+    socket.on('file-deleted', ({ sessionId, fileId }) => {
+      if (!currentSessionId || currentSessionId !== sessionId) return;
+      const roomName = `session:${currentSessionMongoId}`;
+      socket.to(roomName).emit('file-deleted', { fileId });
+    });
+
+    socket.on('folder-renamed', ({ sessionId, files }) => {
+      if (!currentSessionId || currentSessionId !== sessionId) return;
+      const roomName = `session:${currentSessionMongoId}`;
+      socket.to(roomName).emit('folder-renamed', { files });
+    });
+
+    socket.on('folder-deleted', ({ sessionId, deletedFileIds }) => {
+      if (!currentSessionId || currentSessionId !== sessionId) return;
+      const roomName = `session:${currentSessionMongoId}`;
+      socket.to(roomName).emit('folder-deleted', { deletedFileIds });
     });
 
     // ─── CURSOR MOVE ───────────────────────────────────

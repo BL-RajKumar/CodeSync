@@ -209,7 +209,7 @@ export const updateFileContent = async (req, res) => {
 
     await file.save();
 
-    res.json({ message: 'File saved successfully', fileId: file._id, size: file.size });
+    res.json({ message: 'File saved successfully', fileId: file._id, size: file.size, updatedAt: file.updatedAt });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
