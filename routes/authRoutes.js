@@ -7,6 +7,8 @@ import {
   getUserProfile,
   updateUserProfile,
   verifyEmail,
+  forgotPassword,
+  resetPassword,
 } from '../controllers/authController.js';
 import { protect } from '../middleware/authMiddleware.js';
 import { validateRegister, validateLogin } from '../middleware/validationMiddleware.js';
@@ -20,6 +22,10 @@ router.post('/register', validateRegister, registerUser);
 router.post('/login', validateLogin, loginUser);
 
 router.post('/logout', logoutUser);
+
+router.post('/forgot-password', forgotPassword);
+
+router.post('/reset-password/:resetToken', resetPassword);
 
 router.route('/profile').get(protect, getUserProfile).put(protect, updateUserProfile);
 

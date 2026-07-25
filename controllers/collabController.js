@@ -310,3 +310,48 @@ export const inviteUser = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+// @desc    Get the latest collaboration session for a project
+// @route   GET /api/collab/project/:projectId/last
+// @access  Private (owner only)
+export const getLastSessionForProject = async (req, res) => {
+  const { projectId } = req.params;
+  try {
+    const session = await CollaborationSession.findOne({ projectId })
+      .sort({ createdAt: -1 });
+
+    if (!session) {
+      return res.json(null);
+    }
+
+    if (session.ownerId.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: 'Only the project owner can view past session notes' });
+    }
+
+    res.json(session);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc    Update notes for a specific session
+// @route   PATCH /api/collab/:sessionId/notes
+// @access  Private (owner only)
+export const updateSessionNotes = async (req, res) => {
+  const { sessionId } = req.params;
+  const { privateNotes } = req.body;
+  try {
+    const session = await CollaborationSession.findOne({ sessionId });
+    if (!session) {
+      return res.status(404).json({ message: 'Session not found' });
+    }
+    if (session.ownerId.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: 'Only the session owner can edit notes' });
+    }
+    session.privateNotes = privateNotes;
+    await session.save();
+    res.json({ message: 'Notes updated successfully', privateNotes: session.privateNotes });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};

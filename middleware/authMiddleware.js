@@ -19,6 +19,7 @@ const checkGuestSession = async (req) => {
     }
 
     const guestUsername = req.headers['x-guest-username'] || 'Guest';
+    const guestEmail = req.headers['x-guest-email'] || '';
     const guestUserId = req.headers['x-guest-userid'];
 
     let parsedUserId;
@@ -37,6 +38,7 @@ const checkGuestSession = async (req) => {
     req.user = {
       _id: parsedUserId,
       username: guestUsername,
+      email: guestEmail,
       isGuest: true,
       role: 'Guest'
     };

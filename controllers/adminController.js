@@ -492,3 +492,102 @@ export const sendBroadcast = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+// @desc    Get guest user activity history & audit logs
+// @route   GET /api/admin/guest-logs
+// @access  Private/Admin
+export const getGuestLogs = async (req, res) => {
+  try {
+    const sessions = await CollaborationSession.find({
+      $or: [
+        { 'guestLogs.0': { $exists: true } },
+        { 'participants.isGuest': true },
+      ]
+    })
+      .populate('projectId', 'name')
+      .populate('ownerId', 'username email avatarUrl')
+      .sort({ updatedAt: -1, createdAt: -1 });
+
+    const logs = [];
+
+    sessions.forEach(session => {
+      // 1. Process stored guestLogs
+      if (session.guestLogs && session.guestLogs.length > 0) {
+        session.guestLogs.forEach(g => {
+          logs.push({
+            guestName: g.guestName || 'Guest',
+            guestEmail: g.guestEmail || 'Not provided',
+            userId: g.userId,
+            joinedAt: g.joinedAt || session.createdAt,
+            sessionId: session.sessionId,
+            projectName: session.projectId?.name || 'Untitled Project',
+            projectId: session.projectId?._id,
+            invitedByUsername: session.ownerId?.username || 'Unknown',
+            invitedByEmail: session.ownerId?.email || '',
+            sessionStatus: session.status,
+          });
+        });
+      }
+
+      // 2. Fallback check for live active guests in participants list
+      if (session.participants && session.participants.length > 0) {
+        session.participants.forEach(p => {
+          if (p.isGuest || (!p.avatarUrl && p.username && p.userId?.toString().length > 20)) {
+            const exists = logs.some(l => l.sessionId === session.sessionId && l.userId === p.userId.toString());
+            if (!exists) {
+              logs.push({
+                guestName: p.username || 'Guest',
+                guestEmail: p.email || 'Not provided',
+                userId: p.userId.toString(),
+                joinedAt: p.joinedAt || session.createdAt,
+                sessionId: session.sessionId,
+                projectName: session.projectId?.name || 'Untitled Project',
+                projectId: session.projectId?._id,
+                invitedByUsername: session.ownerId?.username || 'Unknown',
+                invitedByEmail: session.ownerId?.email || '',
+                sessionStatus: session.status,
+              });
+            }
+          }
+        });
+      }
+    });
+
+    // Sort newest first
+    logs.sort((a, b) => new Date(b.joinedAt) - new Date(a.joinedAt));
+
+    res.json({ logs });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc    Delete an individual guest activity log
+// @route   DELETE /api/admin/guest-logs/:sessionId/:userId
+// @access  Private/Admin
+export const deleteGuestLog = async (req, res) => {
+  try {
+    const { sessionId, userId } = req.params;
+
+    const session = await CollaborationSession.findOne({ sessionId });
+    if (!session) {
+      return res.status(404).json({ message: 'Collaboration session not found' });
+    }
+
+    // Pull from guestLogs
+    if (session.guestLogs) {
+      session.guestLogs = session.guestLogs.filter(g => g.userId !== userId);
+    }
+
+    // Pull from participants
+    if (session.participants) {
+      session.participants = session.participants.filter(p => p.userId?.toString() !== userId);
+    }
+
+    await session.save();
+
+    res.json({ message: 'Guest activity log deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
