@@ -4,7 +4,7 @@ import {
   getActiveSessions, terminateSession, 
   getActiveJobs, cancelJob, getPlatformAnalytics,
   getLanguages, createLanguage, updateLanguage, deleteLanguage,
-  sendBroadcast
+  sendBroadcast, getGuestLogs, deleteGuestLog
 } from '../controllers/adminController.js';
 import { protect, admin } from '../middleware/authMiddleware.js';
 
@@ -17,6 +17,12 @@ router.use(admin);
 
 router.route('/users')
   .get(getAllUsers);
+
+router.route('/guest-logs')
+  .get(getGuestLogs);
+
+router.route('/guest-logs/:sessionId/:userId')
+  .delete(deleteGuestLog);
 
 router.route('/users/:id/suspend')
   .put(suspendUser);
