@@ -1,5 +1,5 @@
 import express from 'express';
-import { startSession, joinSession, verifySessionPassword, endSession, getSession, inviteUser } from '../controllers/collabController.js';
+import { startSession, joinSession, verifySessionPassword, endSession, getSession, inviteUser, getLastSessionForProject, updateSessionNotes } from '../controllers/collabController.js';
 import { protect, optionalAuth } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
@@ -16,5 +16,9 @@ router.post('/:sessionId/end', protect, endSession);
 router.get('/:sessionId', protect, getSession);
 
 router.post('/:sessionId/invite', protect, inviteUser);
+
+router.get('/project/:projectId/last', protect, getLastSessionForProject);
+
+router.patch('/:sessionId/notes', protect, updateSessionNotes);
 
 export default router;

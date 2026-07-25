@@ -3,12 +3,38 @@ import crypto from 'crypto';
 
 const participantSchema = new mongoose.Schema({
   userId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
+    type: mongoose.Schema.Types.Mixed,
     required: true,
   },
   username: String,
+  email: {
+    type: String,
+    default: '',
+  },
+  isGuest: {
+    type: Boolean,
+    default: false,
+  },
   avatarUrl: String,
+  joinedAt: {
+    type: Date,
+    default: Date.now,
+  },
+}, { _id: false });
+
+const guestLogSchema = new mongoose.Schema({
+  guestName: {
+    type: String,
+    default: 'Guest',
+  },
+  guestEmail: {
+    type: String,
+    default: '',
+  },
+  userId: {
+    type: String,
+    required: true,
+  },
   joinedAt: {
     type: Date,
     default: Date.now,
@@ -85,6 +111,8 @@ const collaborationSessionSchema = new mongoose.Schema({
   ],
   // Live participant tracking
   participants: [participantSchema],
+  // Persistent history of all guests who joined this session
+  guestLogs: [guestLogSchema],
   // Permanently banned user IDs for the duration of this session (kicked users)
   kickedParticipants: [
     {
@@ -92,6 +120,19 @@ const collaborationSessionSchema = new mongoose.Schema({
       _id: false,
     }
   ],
+  messages: [
+    {
+      senderId: String,
+      senderName: String,
+      text: String,
+      timestamp: { type: Date, default: Date.now },
+      _id: false
+    }
+  ],
+  privateNotes: {
+    type: String,
+    default: ''
+  }
 }, {
   timestamps: false, // We manage createdAt/endedAt manually per the schema
 });

@@ -26,6 +26,7 @@ const initializeCollabSocket = (io) => {
       if (!token) {
         // Authenticate guest user
         const guestUsername = socket.handshake.auth?.guestUsername;
+        const guestEmail = socket.handshake.auth?.guestEmail || '';
         const guestUserId = socket.handshake.auth?.guestUserId;
         const sessionId = socket.handshake.auth?.sessionId;
 
@@ -43,6 +44,7 @@ const initializeCollabSocket = (io) => {
             socket.user = {
               _id: guestUserId,
               username: guestUsername,
+              email: guestEmail,
               isGuest: true
             };
             return next();
@@ -133,6 +135,8 @@ const initializeCollabSocket = (io) => {
           session.participants.push({
             userId: socket.user._id,
             username: socket.user.username,
+            email: socket.user.email || '',
+            isGuest: !!socket.user.isGuest,
             avatarUrl: socket.user.avatarUrl || '',
           });
 
@@ -150,6 +154,23 @@ const initializeCollabSocket = (io) => {
           }
         }
 
+        // Record persistent guest log entry if guest
+        if (socket.user.isGuest) {
+          if (!session.guestLogs) session.guestLogs = [];
+          const guestUid = socket.user._id.toString();
+          const existingLogIndex = session.guestLogs.findIndex(g => g.userId === guestUid);
+          if (existingLogIndex === -1) {
+            session.guestLogs.push({
+              guestName: socket.user.username,
+              guestEmail: socket.user.email || '',
+              userId: guestUid,
+              joinedAt: new Date(),
+            });
+          } else if (socket.user.email && !session.guestLogs[existingLogIndex].guestEmail) {
+            session.guestLogs[existingLogIndex].guestEmail = socket.user.email;
+          }
+        }
+
         session.lastActiveAt = new Date();
         await session.save();
 
@@ -160,6 +181,7 @@ const initializeCollabSocket = (io) => {
         const cursorColor = CURSOR_COLORS[participantIndex % CURSOR_COLORS.length];
 
         // Send session data to the joining user
+        const isOwner = session.ownerId.toString() === socket.user._id.toString();
         socket.emit('session-joined', {
           sessionId,
           fileId: session.fileId,
@@ -170,6 +192,8 @@ const initializeCollabSocket = (io) => {
           language: session.language,
           createdAt: session.createdAt,
           isCopyPasteRestricted: session.isCopyPasteRestricted || false,
+          messages: session.messages || [],
+          ...(isOwner ? { privateNotes: session.privateNotes || '' } : {}),
         });
 
         // Broadcast to others that a new user joined
@@ -370,6 +394,54 @@ const initializeCollabSocket = (io) => {
         console.log(`[Socket] Host toggled copy-paste restriction in session ${sessionId} to ${isCopyPasteRestricted}`);
       } catch (error) {
         console.error('[Socket] Toggle copy-paste restriction error:', error.message);
+      }
+    });
+
+    // ─── SEND CHAT MESSAGE ─────────────────────────────
+    socket.on('send-chat-message', async ({ sessionId, text }) => {
+      if (!currentSessionId || currentSessionId !== sessionId || !text || text.trim() === '') return;
+
+      try {
+        const session = await CollaborationSession.findOne({ sessionId, status: 'Active' });
+        if (!session) return;
+
+        const newMessage = {
+          senderId: socket.user._id.toString(),
+          senderName: socket.user.username,
+          text: text.trim(),
+          timestamp: new Date(),
+        };
+
+        if (!session.messages) session.messages = [];
+        session.messages.push(newMessage);
+        await session.save();
+
+        const roomName = `session:${currentSessionMongoId}`;
+        io.to(roomName).emit('chat-message', newMessage);
+      } catch (error) {
+        console.error('[Socket] Send chat message error:', error.message);
+      }
+    });
+
+    // ─── UPDATE PRIVATE NOTES ──────────────────────────
+    socket.on('update-private-notes', async ({ sessionId, text }) => {
+      if (!currentSessionId || currentSessionId !== sessionId) return;
+
+      try {
+        const session = await CollaborationSession.findOne({ sessionId, status: 'Active' });
+        if (!session) return;
+
+        // Verify this user is the owner/host
+        if (session.ownerId.toString() !== socket.user._id.toString()) {
+          socket.emit('error-message', { message: 'Only the session host can save private notes' });
+          return;
+        }
+
+        session.privateNotes = text || '';
+        await session.save();
+        // Do NOT broadcast: notes are private to host
+      } catch (error) {
+        console.error('[Socket] Update private notes error:', error.message);
       }
     });
 
