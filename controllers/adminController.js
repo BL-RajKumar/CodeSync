@@ -30,7 +30,7 @@ export const getAllUsers = async (req, res) => {
     }
 
     // Role filter
-    if (role && ['Guest', 'Developer', 'Admin'].includes(role)) {
+    if (role && ['Guest', 'Candidate', 'Employee', 'Admin'].includes(role)) {
       query.role = role;
     }
 
@@ -587,6 +587,41 @@ export const deleteGuestLog = async (req, res) => {
     await session.save();
 
     res.json({ message: 'Guest activity log deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc    Update a user's role
+// @route   PUT /api/admin/users/:id/role
+// @access  Private/Admin
+export const updateUserRole = async (req, res) => {
+  try {
+    const { role } = req.body;
+    if (!['Candidate', 'Employee', 'Admin'].includes(role)) {
+      return res.status(400).json({ message: 'Invalid role assignment' });
+    }
+
+    const user = await User.findById(req.params.id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    user.role = role;
+    await user.save();
+
+    res.json({
+      message: `User role updated to ${role} successfully.`,
+      user: {
+        userId: user._id,
+        username: user.username,
+        email: user.email,
+        fullName: user.fullName,
+        role: user.role,
+        isActive: user.isActive,
+        createdAt: user.createdAt,
+      }
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

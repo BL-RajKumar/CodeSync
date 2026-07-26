@@ -348,10 +348,13 @@ export const forgotPassword = async (req, res) => {
 // @access  Public
 export const resetPassword = async (req, res) => {
   try {
+    // Sanitize token (trim spaces, remove trailing slashes)
+    const cleanToken = req.params.resetToken ? req.params.resetToken.trim().replace(/\/$/, '') : '';
+
     // Get hashed token
     const resetPasswordToken = crypto
       .createHash('sha256')
-      .update(req.params.resetToken)
+      .update(cleanToken)
       .digest('hex');
 
     const user = await User.findOne({
@@ -360,7 +363,7 @@ export const resetPassword = async (req, res) => {
     });
 
     if (!user) {
-      return res.status(400).json({ message: 'Invalid or expired password reset token.' });
+      return res.status(400).json({ message: 'Invalid or expired password reset token. If you requested a reset multiple times, please make sure to use the link from the most recent email.' });
     }
 
     if (!req.body.password) {
