@@ -30,7 +30,7 @@ export const getAllUsers = async (req, res) => {
     }
 
     // Role filter
-    if (role && ['Guest', 'Candidate', 'Employee', 'Admin'].includes(role)) {
+    if (role && ['Guest', 'Candidate', 'Employee', 'Interviewer', 'Admin'].includes(role)) {
       query.role = role;
     }
 
@@ -598,7 +598,7 @@ export const deleteGuestLog = async (req, res) => {
 export const updateUserRole = async (req, res) => {
   try {
     const { role } = req.body;
-    if (!['Candidate', 'Employee', 'Admin'].includes(role)) {
+    if (!['Candidate', 'Employee', 'Interviewer', 'Admin'].includes(role)) {
       return res.status(400).json({ message: 'Invalid role assignment' });
     }
 

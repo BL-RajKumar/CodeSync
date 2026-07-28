@@ -34,6 +34,10 @@ connectDB().then(async () => {
     if (res.modifiedCount > 0) {
       console.log(`[Migration] Migrated ${res.modifiedCount} legacy 'Developer' users to 'Candidate'.`);
     }
+    const resEmp = await User.updateMany({ role: 'Employee' }, { $set: { role: 'Interviewer' } });
+    if (resEmp.modifiedCount > 0) {
+      console.log(`[Migration] Migrated ${resEmp.modifiedCount} legacy 'Employee' users to 'Interviewer'.`);
+    }
   } catch (err) {
     console.error('[Migration] Error migrating users:', err);
   }
