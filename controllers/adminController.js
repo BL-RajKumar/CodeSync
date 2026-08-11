@@ -12,6 +12,9 @@ import { activeExecutions, refreshLanguagesCache } from './sandboxController.js'
 export const getAllUsers = async (req, res) => {
   try {
     const { search, role, status } = req.query;
+    const page = parseInt(req.query.page, 10) || 1;
+    const limit = parseInt(req.query.limit, 10) || 10;
+    const skip = (page - 1) * limit;
     
     // Construct query object
     const query = {};
@@ -43,12 +46,25 @@ export const getAllUsers = async (req, res) => {
       }
     }
 
-    // Fetch users sorted by newest first, excluding passwordHash
+    // Get total matching users for pagination metadata
+    const total = await User.countDocuments(query);
+
+    // Fetch users sorted by newest first, excluding passwordHash, with pagination limit/skip
     const users = await User.find(query)
       .select('-passwordHash')
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
 
-    res.json({ users });
+    res.json({ 
+      users,
+      pagination: {
+        total,
+        page,
+        limit,
+        pages: Math.ceil(total / limit)
+      }
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

@@ -45,6 +45,10 @@ const projectSchema = new mongoose.Schema({
     type: Number,
     default: 0,
   },
+  isPlayground: {
+    type: Boolean,
+    default: false,
+  },
 }, {
   timestamps: true, // Automatically adds createdAt and updatedAt
 });
