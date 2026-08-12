@@ -12,6 +12,9 @@ import { activeExecutions, refreshLanguagesCache } from './sandboxController.js'
 export const getAllUsers = async (req, res) => {
   try {
     const { search, role, status } = req.query;
+    const page = parseInt(req.query.page, 10) || 1;
+    const limit = parseInt(req.query.limit, 10) || 10;
+    const skip = (page - 1) * limit;
     
     // Construct query object
     const query = {};
@@ -30,7 +33,7 @@ export const getAllUsers = async (req, res) => {
     }
 
     // Role filter
-    if (role && ['Guest', 'Developer', 'Admin'].includes(role)) {
+    if (role && ['Guest', 'Candidate', 'Employee', 'Interviewer', 'Admin'].includes(role)) {
       query.role = role;
     }
 
@@ -43,12 +46,25 @@ export const getAllUsers = async (req, res) => {
       }
     }
 
-    // Fetch users sorted by newest first, excluding passwordHash
+    // Get total matching users for pagination metadata
+    const total = await User.countDocuments(query);
+
+    // Fetch users sorted by newest first, excluding passwordHash, with pagination limit/skip
     const users = await User.find(query)
       .select('-passwordHash')
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
 
-    res.json({ users });
+    res.json({ 
+      users,
+      pagination: {
+        total,
+        page,
+        limit,
+        pages: Math.ceil(total / limit)
+      }
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -587,6 +603,41 @@ export const deleteGuestLog = async (req, res) => {
     await session.save();
 
     res.json({ message: 'Guest activity log deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc    Update a user's role
+// @route   PUT /api/admin/users/:id/role
+// @access  Private/Admin
+export const updateUserRole = async (req, res) => {
+  try {
+    const { role } = req.body;
+    if (!['Candidate', 'Employee', 'Interviewer', 'Admin'].includes(role)) {
+      return res.status(400).json({ message: 'Invalid role assignment' });
+    }
+
+    const user = await User.findById(req.params.id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    user.role = role;
+    await user.save();
+
+    res.json({
+      message: `User role updated to ${role} successfully.`,
+      user: {
+        userId: user._id,
+        username: user.username,
+        email: user.email,
+        fullName: user.fullName,
+        role: user.role,
+        isActive: user.isActive,
+        createdAt: user.createdAt,
+      }
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

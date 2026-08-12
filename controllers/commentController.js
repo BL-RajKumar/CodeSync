@@ -13,7 +13,9 @@ const parseMentionsAndNotify = async (content, senderId, senderUsername, project
 
   while ((match = mentionRegex.exec(content)) !== null) {
     const username = match[1];
-    const mentionedUser = await User.findOne({ username });
+    const mentionedUser = await User.findOne({ 
+      username: { $regex: new RegExp('^' + username.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&') + '$', 'i') }
+    });
     if (mentionedUser && mentionedUser._id.toString() !== senderId.toString()) {
       await createNotification({
         recipientId: mentionedUser._id,
