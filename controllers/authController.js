@@ -15,7 +15,9 @@ export const registerUser = async (req, res) => {
       return res.status(400).json({ message: 'An account with this email address already exists.' });
     }
 
-    const usernameExists = await User.findOne({ username });
+    const usernameExists = await User.findOne({ 
+      username: { $regex: new RegExp('^' + username.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&') + '$', 'i') }
+    });
     if (usernameExists) {
       return res.status(400).json({ message: 'Username is already taken. Please choose a different username.' });
     }
@@ -86,11 +88,11 @@ export const loginUser = async (req, res) => {
       return res.status(400).json({ message: 'Please enter your username or email address' });
     }
 
-    // Query user by email OR username
+    // Query user by email OR username (case-insensitive)
     const user = await User.findOne({
       $or: [
         { email: identifier.toLowerCase() },
-        { username: identifier },
+        { username: { $regex: new RegExp('^' + identifier.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&') + '$', 'i') } },
       ],
     });
 
@@ -176,10 +178,10 @@ export const updateUserProfile = async (req, res) => {
     const user = await User.findById(req.user._id);
 
     if (user) {
-      // Check username uniqueness if updating to a new username
+      // Check username uniqueness if updating to a new username (case-insensitive)
       if (req.body.username && req.body.username !== user.username) {
         const usernameExists = await User.findOne({ 
-          username: req.body.username, 
+          username: { $regex: new RegExp('^' + req.body.username.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&') + '$', 'i') }, 
           _id: { $ne: user._id } 
         });
         if (usernameExists) {
