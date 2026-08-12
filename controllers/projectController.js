@@ -10,7 +10,7 @@ import { getBoilerplateForLanguage } from '../utils/boilerplateTemplates.js';
 // @route   POST /api/projects
 // @access  Private
 export const createProject = async (req, res) => {
-  const { name, description, language, visibility, templateId } = req.body;
+  const { name, description, language, visibility, templateId, isPlayground } = req.body;
 
   if (!name || !language) {
     return res.status(400).json({ message: 'Project name and language are required' });
@@ -24,6 +24,7 @@ export const createProject = async (req, res) => {
       visibility: visibility || 'Public',
       templateId: templateId || null,
       ownerId: req.user._id, // Set by the 'protect' middleware
+      isPlayground: !!isPlayground,
     });
 
     const boilerplateFiles = getBoilerplateForLanguage(language);
@@ -71,7 +72,7 @@ export const getPublicProjects = async (req, res) => {
     const skip = (page - 1) * limit;
 
     const { name, language, owner } = req.query;
-    const query = { visibility: 'Public' };
+    const query = { visibility: 'Public', isPlayground: { $ne: true } };
 
     // Exclude the logged-in user's own projects from explore results
     if (req.user) {

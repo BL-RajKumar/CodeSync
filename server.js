@@ -8,6 +8,7 @@ import session from 'express-session';
 import passport from 'passport';
 
 import connectDB from './config/db.js';
+import User from './models/User.js';
 import configurePassport from './config/passport.js';
 import authRoutes from './routes/authRoutes.js';
 import userRoutes from './routes/userRoutes.js';
@@ -27,7 +28,20 @@ import setupSwagger from './config/swagger.js';
 
 // Connect to database
 // Note: Ensure MongoDB is running locally
-connectDB();
+connectDB().then(async () => {
+  try {
+    const res = await User.updateMany({ role: 'Developer' }, { $set: { role: 'Candidate' } });
+    if (res.modifiedCount > 0) {
+      console.log(`[Migration] Migrated ${res.modifiedCount} legacy 'Developer' users to 'Candidate'.`);
+    }
+    const resEmp = await User.updateMany({ role: 'Employee' }, { $set: { role: 'Interviewer' } });
+    if (resEmp.modifiedCount > 0) {
+      console.log(`[Migration] Migrated ${resEmp.modifiedCount} legacy 'Employee' users to 'Interviewer'.`);
+    }
+  } catch (err) {
+    console.error('[Migration] Error migrating users:', err);
+  }
+});
 
 const app = express();
 app.set('trust proxy', 1); // Trust reverse proxy (Render) to securely handle HTTPS OAuth callbacks
